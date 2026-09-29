@@ -1,0 +1,11 @@
+# The namespace developers deploy into. We opt it into the Kubernetes
+# "restricted" Pod Security Standard so insecure pods are rejected by the
+# built-in admission controller, before Kyverno even weighs in.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

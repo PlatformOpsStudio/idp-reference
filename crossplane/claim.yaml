@@ -1,0 +1,10 @@
+# This is all a developer writes. Everything else is the platform's job.
+apiVersion: platform.platformops.studio/v1alpha1
+kind: Database
+metadata:
+  name: orders-db
+  namespace: demo
+spec:
+  parameters:
+    engine: postgres
+    size: small

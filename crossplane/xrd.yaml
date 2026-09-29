@@ -1,0 +1,45 @@
+# Layer 2 — the self-service API a platform team publishes for developers.
+# A developer asks for a "Database"; they never touch the cloud console.
+# For this overview the "database" is represented by an in-cluster ConfigMap,
+# so there is nothing to bill and nothing to leak.
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xdatabases.platform.platformops.studio
+spec:
+  group: platform.platformops.studio
+  names:
+    kind: XDatabase
+    plural: xdatabases
+  claimNames:
+    kind: Database
+    plural: databases
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    engine:
+                      type: string
+                      enum: ["postgres"]
+                      default: "postgres"
+                    size:
+                      type: string
+                      enum: ["small", "medium"]
+                      default: "small"
+                  required: ["engine", "size"]
+              required: ["parameters"]
+            status:
+              type: object
+              properties:
+                connectionConfigMap:
+                  type: string

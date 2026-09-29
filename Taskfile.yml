@@ -1,0 +1,97 @@
+# Task runner for the reference IDP. Install go-task: https://taskfile.dev
+# Quickstart:  task up   (setup + deploy + verify)
+# Then:        task forward   and open http://localhost:8080
+version: "3"
+
+vars:
+  CLUSTER: idp-demo
+  ARGOCD_VERSION: v2.13.0
+  CROSSPLANE_VERSION: "1.18.0"
+  KYVERNO_VERSION: v1.13.0
+
+tasks:
+  default:
+    desc: List available tasks.
+    cmds:
+      - task --list
+    silent: true
+
+  up:
+    desc: One-command quickstart - setup, deploy, and verify.
+    cmds:
+      - task: setup
+      - task: deploy
+      - task: verify
+
+  setup:
+    desc: Check tools and create the kind cluster.
+    cmds:
+      - bash -c 'for b in docker kind kubectl helm; do command -v "$b" >/dev/null || { echo "Missing required tool: $b"; exit 1; }; done'
+      - bash -c 'kind get clusters | grep -qx "{{.CLUSTER}}" || kind create cluster --config kind/kind-config.yaml'
+
+  deploy:
+    desc: Install ArgoCD, Crossplane, Kyverno, and the platform (GitOps).
+    cmds:
+      - task: deploy-argocd
+      - task: deploy-crossplane
+      - task: deploy-kyverno
+      - task: deploy-platform
+
+  deploy-argocd:
+    desc: Install ArgoCD (Layer 3).
+    cmds:
+      - kubectl get namespace argocd >/dev/null 2>&1 || kubectl create namespace argocd
+      - kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.ARGOCD_VERSION}}/manifests/install.yaml
+      - kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
+
+  deploy-crossplane:
+    desc: Install Crossplane + provider and publish the Database API (Layer 2).
+    cmds:
+      - helm repo add crossplane-stable https://charts.crossplane.io/stable
+      - helm repo update
+      - helm upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system --create-namespace --version {{.CROSSPLANE_VERSION}} --wait
+      - kubectl apply -f crossplane/functions.yaml -f crossplane/provider-kubernetes.yaml
+      - kubectl wait function.pkg.crossplane.io/function-patch-and-transform --for=condition=Healthy --timeout=300s
+      - kubectl wait provider.pkg.crossplane.io/provider-kubernetes --for=condition=Healthy --timeout=300s
+      - kubectl apply -f crossplane/xrd.yaml
+      - kubectl wait customresourcedefinition/databases.platform.platformops.studio --for=condition=Established --timeout=120s
+      - kubectl apply -f crossplane/composition.yaml
+      - kubectl get namespace demo >/dev/null 2>&1 || kubectl create namespace demo
+      - kubectl apply -f crossplane/claim.yaml
+
+  deploy-kyverno:
+    desc: Install Kyverno and load policies in Audit mode (Layer 5).
+    cmds:
+      - kubectl apply -f https://github.com/kyverno/kyverno/releases/download/{{.KYVERNO_VERSION}}/install.yaml
+      - kubectl -n kyverno rollout status deploy/kyverno-admission-controller --timeout=300s
+      - kubectl apply -k kyverno/
+
+  deploy-platform:
+    desc: Hand the cluster to GitOps via the app-of-apps (Layers 1 & 3).
+    cmds:
+      - kubectl apply -f argocd/app-of-apps.yaml
+
+  verify:
+    desc: Preflight - confirm every layer is green before recording.
+    cmds:
+      - bash scripts/verify.sh
+
+  forward:
+    desc: Port-forward the ArgoCD UI to http://localhost:8080.
+    cmds:
+      - bash scripts/forward.sh
+
+  demo:
+    desc: Run the money moment (GitOps self-heal).
+    cmds:
+      - bash scripts/demo.sh
+
+  reset:
+    desc: Reset to a clean state between takes (no cluster rebuild).
+    cmds:
+      - bash scripts/reset.sh
+
+  destroy:
+    desc: Delete the kind cluster entirely.
+    cmds:
+      - kind delete cluster --name {{.CLUSTER}}

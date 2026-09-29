@@ -1,0 +1,38 @@
+# Layer 1 — Developer Interface (Backstage).
+# These are the entities you SEE in the portal: a service, its owner, and the
+# system it belongs to. Registering this file in Backstage populates the
+# software catalog shown in the video. A ready-to-run portal that consumes
+# these entities is built end-to-end in Episode 02.
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: platformops-idp
+  description: Reference internal developer platform.
+spec:
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: payments-service
+  description: Example service shown in the catalog walkthrough.
+  annotations:
+    backstage.io/kubernetes-id: demo-app
+  tags:
+    - go
+    - grpc
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: platformops-idp
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform-team
+  description: Owns the platform and its golden paths.
+spec:
+  type: team
+  children: []

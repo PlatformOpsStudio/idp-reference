@@ -1,0 +1,43 @@
+# A "golden path": the self-service template a developer fills in to scaffold a
+# new service. Three questions in, a repo + manifests come out the other side.
+# This is the entity behind the "Create" button in the video.
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: new-microservice
+  title: New Microservice
+  description: Scaffold a production-ready service wired into the platform.
+spec:
+  owner: platform-team
+  type: service
+  parameters:
+    - title: Tell us about your service
+      required: ["name", "owner"]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name for the service (lowercase, dashes).
+          pattern: "^[a-z0-9-]+$"
+        owner:
+          title: Owner
+          type: string
+          description: Team that will own this service.
+          ui:field: OwnerPicker
+        database:
+          title: Needs a database?
+          type: boolean
+          default: false
+  steps:
+    - id: log
+      name: Scaffold
+      action: debug:log
+      input:
+        message: "Scaffolding ${{ parameters.name }} owned by ${{ parameters.owner }}."
+  output:
+    text:
+      - title: Next steps
+        content: |
+          Service ${{ parameters.name }} scaffolded. In a full portal this step
+          creates the Git repo, CI pipeline, and (optionally) a Crossplane
+          Database claim, then registers the new component in the catalog.

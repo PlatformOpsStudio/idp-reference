@@ -1,0 +1,50 @@
+# The platform team's opinionated implementation of a "Database".
+# When a developer creates a Database claim, this Composition provisions a
+# ConfigMap holding the connection details. Swap the Object below for a real
+# cloud database (provider-aws/gcp/azure) and the developer API stays the same.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xdatabases.platform.platformops.studio
+spec:
+  compositeTypeRef:
+    apiVersion: platform.platformops.studio/v1alpha1
+    kind: XDatabase
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: connection-configmap
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              spec:
+                providerConfigRef:
+                  name: provider-kubernetes
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: ConfigMap
+                    metadata:
+                      name: demo-db-connection
+                      namespace: demo
+                    data:
+                      engine: "postgres"
+                      host: "demo-db.demo.svc.cluster.local"
+                      port: "5432"
+                      database: "orders"
+            patches:
+              # Copy the requested engine from the developer's claim into the
+              # provisioned ConfigMap, proving the request flows end to end.
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.engine
+                toFieldPath: spec.forProvider.manifest.data.engine
+              # Surface the resulting ConfigMap name back on the claim's status.
+              - type: ToCompositeFieldPath
+                fromFieldPath: spec.forProvider.manifest.metadata.name
+                toFieldPath: status.connectionConfigMap

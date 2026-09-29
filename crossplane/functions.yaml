@@ -1,0 +1,9 @@
+# Composition Functions are how modern Crossplane (v1.17+) renders resources.
+# We use the official patch-and-transform function in the Composition pipeline.
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.8.2

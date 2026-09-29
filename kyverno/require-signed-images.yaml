@@ -1,0 +1,35 @@
+# Supply-chain guardrail: verify images are signed (keyless / Sigstore).
+# Audit mode here so the unsigned demo image still runs; the full enforce-mode
+# walkthrough with cosign is its own episode. failurePolicy Ignore keeps the
+# webhook from ever blocking scheduling if the verification service is down.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-signed-images
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Audit
+  background: false
+  failurePolicy: Ignore
+  webhookTimeoutSeconds: 15
+  rules:
+    - name: verify-signature-keyless
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaces: ["demo"]
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/platformopsstudio/*"
+          failureAction: Audit
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/PlatformOpsStudio/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev

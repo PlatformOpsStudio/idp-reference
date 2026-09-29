@@ -1,0 +1,29 @@
+# Layer 3 — GitOps delivery. The "app of apps" root: ArgoCD reads the
+# argocd/apps directory from Git and manages every child Application it finds.
+#
+# repoURL points at the canonical public blueprint. If you fork this repo and
+# want ArgoCD to track YOUR fork, change repoURL to your fork's URL and push.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/PlatformOpsStudio/idp-reference.git
+    targetRevision: main
+    path: argocd/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
